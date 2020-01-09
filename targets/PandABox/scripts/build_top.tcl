@@ -54,6 +54,12 @@ set_property used_in_synthesis false -quiet [get_files *_impl.xdc]
 # Read Zynq block design
 read_bd   $BUILD_DIR/panda_ps/panda_ps.srcs/sources_1/bd/panda_ps/panda_ps.bd
 
+# Update the IPs as the PS script does not build them properly
+update_compile_order -fileset sources_1
+upgrade_ip [get_ips {panda_ps_processing_system7_0_0 panda_ps_proc_sys_reset_0_0}]
+set_property synth_checkpoint_mode None [get_files  $BUILD_DIR/panda_ps/panda_ps.srcs/sources_1/bd/panda_ps/panda_ps.bd]
+generate_target all [get_files  $BUILD_DIR/panda_ps/panda_ps.srcs/sources_1/bd/panda_ps/panda_ps.bd]
+
 # Read auto generated files
 add_files [glob $AUTOGEN/hdl/*.vhd]
 

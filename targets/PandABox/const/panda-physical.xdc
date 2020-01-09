@@ -204,5 +204,14 @@ set SFP1_GTX_LOC GTXE2_CHANNEL_X0Y3
 set SFP2_GTX_LOC GTXE2_CHANNEL_X0Y2
 set SFP3_GTX_LOC GTXE2_CHANNEL_X0Y1
 
+# Try to get Constraints to work
 
+ set_property IO_BUFFER_TYPE None [get_ports {SFP_TX_P[0]  }];
+ set_property IO_BUFFER_TYPE None [get_ports {SFP_TX_P[1]  }];
+ set_property IO_BUFFER_TYPE None [get_ports {SFP_TX_P[2]  }];
+ set_property IO_BUFFER_TYPE None [get_ports {SFP_TX_N[0]  }];
+ set_property IO_BUFFER_TYPE None [get_ports {SFP_TX_N[1]  }];
+ set_property IO_BUFFER_TYPE None [get_ports {SFP_TX_N[2]  }];
+ set_property IO_BUFFER_TYPE None [get_ports {FMC_DP0_C2M_N  }];
+ set_property IO_BUFFER_TYPE None [get_ports {FMC_DP0_C2M_P  }];
 
