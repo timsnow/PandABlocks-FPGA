@@ -76,10 +76,9 @@ report_timing_summary -file post_synth_timing_summary.rpt
 # STEP#3: run placement and logic optimisation, report utilization and timing
 # estimates, write checkpoint design
 #
-opt_design -directive Explore
-
-place_design -directive Explore
-phys_opt_design -directive Explore
+opt_design
+place_design
+phys_opt_design
 write_checkpoint -force post_place
 report_timing_summary -file post_place_timing_summary.rpt
 write_debug_probes -force panda_carrier_top.ltx
