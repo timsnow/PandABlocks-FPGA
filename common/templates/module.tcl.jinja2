@@ -28,7 +28,7 @@ add_files -norecurse {
     {% endif %}
         {% if block.ip %}
                 {% for ip in block.ip %}
-    ../ip_repo/{{ ip }}/{{ ip }}_funcsim.vhdl
+    ../ip_repo/{{ ip }}/{{ ip }}_sim_netlist.vhdl
                 {% endfor %}
         {% endif %}
 }
