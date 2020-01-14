@@ -47,9 +47,27 @@ class PulseSimulation(BlockSimulation):
 
         self.pulse_override = False
         self.dropped_flag = False
+
+
+    def self.incoming_changes(self, changes):
+        self.ENABLE = changes.get(NAMES.ENABLE)
+        self.TRIG = changes.get(NAMES.TRIG)
+        self.DELAY_L = changes.get(NAMES.DELAY_L)
+        self.DELAY_H = changes.get(NAMES.DELAY_H)
+        self.WIDTH_L = changes.get(NAMES.WIDTH_L)
+        self.WIDTH_H = changes.get(NAMES.WIDTH_H)
+        self.PULSES = changes.get(NAMES.PULSES)
+        self.STEP_L = changes.get(NAMES.STEP_L)
+        self.STEP_H = changes.get(NAMES.STEP_H)
+        self.TRIG_EDGE = changes.get(NAMES.TRIG_EDGE)
         
 
+    def self.outgoing_changes(self, changes):
+        
 
+        return changes
+
+        
     def edge_validation(self, rise_value, fall_value, edge_value):
         if (((edge_value == 0) and (rise_value == 1)) or
             ((edge_value == 1) and (fall_value == 1)) or
@@ -63,14 +81,13 @@ class PulseSimulation(BlockSimulation):
     def delay_and_blocking_validation(self, delay_i, gap_i, pulses_i, step_i, width_i, timestamp rise_value, fall_value, edge_value):
         if (self.edge_validation(rise_value, fall_value, edge_value)):
             if (delay_i = 0):
-                pulse_override = True
-                override_ends_ts = timestamp + width_i
+                self.pulse_override = True
+                self.override_ends_ts = timestamp + width_i
 
             if (pulses_i = 1):
-                next_acceptable_pulse_ts = timestamp + width_i
+                self.next_acceptable_pulse_ts = timestamp + width_i
             else
-                steps = step_i * pulses_i
-                next_acceptable_pulse_ts = timestamp + steps
+                self.next_acceptable_pulse_ts = timestamp + overall_time
 
 
     def external_variable_internal_configuration(self):
@@ -79,7 +96,7 @@ class PulseSimulation(BlockSimulation):
         step = self.STEP_L + (self.STEP_H << 32)
         width = self.WIDTH_L + (self.WIDTH_H << 32)
 
-        pulses = max(1, self.PULSES)
+        self.pulses_i = max(1, self.PULSES)
 
         if ((width > 5) or (width = 0)):
             self.width_i = width
@@ -101,6 +118,8 @@ class PulseSimulation(BlockSimulation):
         else
             self.gap_i = 1
 
+        self.overall_time = (self.pulses_i * self.step_i) - gap_i
+
 
     def edge_detection(self, incoming_trigger):
         fall_trig = False
@@ -119,7 +138,7 @@ class PulseSimulation(BlockSimulation):
                 if (self.edge_validation(rise_trig, fall_trig, self.TRIG_EDGE)):
                     self.dropped_flag = True
             else
-                self.delay_and_blocking_validation(self, self.delay_i, self.gap_i, self.pulses_i, self.step_i, self.width_i, self.timestamp rise_trig, fall_trig, self.TRIG_EDGE)
+                self.delay_and_blocking_validation(self, self.delay_i, self.gap_i, self.overall_time, self.pulses_i, self.step_i, self.width_i, self.timestamp rise_trig, fall_trig, self.TRIG_EDGE)
 
         if (self.timestamp == override_ends_ts):
             self.pulse_override = False
@@ -130,7 +149,7 @@ class PulseSimulation(BlockSimulation):
         self.trig_same = same_trig
 
 
-    def queue_item(self):
+    def queue_filling(self):
         if (self.dropped_flag = True)
             self.missed_pulses += 1
 
@@ -211,128 +230,49 @@ class PulseSimulation(BlockSimulation):
 
         # CHANGES = ENABLE, TRIG, DELAY_L, DELAY_H, WIDTH_L, WIDTH_H, PULSES, STEP_L, STEP_H, TRIG_EDGE, OUT, QUEUED, DROPPED
         super(PulseSimulation, self).on_changes(ts, changes)
+        self.timestamp = ts
 
         # INCOMING CHANGES: ENABLE, TRIG, DELAY_L, DELAY_H, WIDTH_L, WIDTH_H, PULSES, STEP_L, STEP_H, TRIG_EDGE
-        # OUTGOIG CHANGES: OUT, QUEUED, DROPPED
+        # OUTGOIG CHANGES:  OUT, QUEUED, DROPPED
 
-        self.timestamp = ts
+        ############################################
+        #     Load incoming changes into class     #
+        ############################################
+
+        self.incoming_changes(changes)        
+
+
         ############################################
         # Freestanding counters, assignments, etc. #
         ############################################
 
-        # Variable assignments from inputs
-        delay = self.DELAY_L + (self.DELAY_H << 32)
-        if delay < 5:
-            delay = 6
+        self.external_variable_internal_configuration()
 
-        pulses = max(1, self.PULSES)
 
-        width = self.WIDTH_L + (self.WIDTH_H << 32)
+        ############################################
+        #          Trigger edge detection          #
+        ############################################
 
-        step = self.STEP_L + (self.STEP_H << 32)
-        if (step < width):
-            step = step + width + 1
-
-        gap = 0
-        if ((step - width) > 1):
-            gap = step - width
-        else:
-            gap = 1
-
-        self.QUEUED = self.internal_queue_length
+        self.edge_detection()
 
 
         ############################################
         #              Queue filling               #
         ############################################
 
-        if (changes.get(NAMES.ENABLE) == 0):
-            self.do_clear_queue(0)
-        if (changes.get(NAMES.ENABLE) == 1):
-            self.DROPPED = 0
-            self.do_clear_queue(0)
-        elif (self.ENABLE == 1):
-            if(changes.get(NAMES.TRIG) == 1):
-                self.timestamp_rise = ts
-            if(changes.get(NAMES.TRIG) == 0):
-                self.timestamp_fall = ts
-
-
-            if (changes.get(NAMES.TRIG) != None):
-                # Dropped edge conditions
-                if ((self.fancy_delay_line == 0) and ((self.delay_timestamp != 0 and ts >= self.delay_timestamp))):
-                    if  (
-                            ((self.TRIG_EDGE == 0) and (changes.get(NAMES.TRIG) == 1)) or
-                            ((self.TRIG_EDGE == 1) and (changes.get(NAMES.TRIG) == 0)) or
-                            ((self.TRIG_EDGE == 2) and (changes.get(NAMES.TRIG) != None))
-                        ):
-
-                        self.DROPPED += 1
-
-                # Fully pre-programmed
-                elif (width != 0):
-                    if  (
-                            ((self.TRIG_EDGE == 0) and (changes.get(NAMES.TRIG) == 1)) or
-                            ((self.TRIG_EDGE == 1) and (changes.get(NAMES.TRIG) == 0)) or
-                            ((self.TRIG_EDGE == 2) and (changes.get(NAMES.TRIG) != None))
-                        ):
-
-                        self.programmed_step_to_queue(pulses, ts, delay, gap, step, width)
-
-                # Part pre-programmed
-                elif ((width == 0) and (self.STEP_L + (self.STEP_H << 32) != 0)):
-                    if  ((self.TRIG_EDGE == 0) and (changes.get(NAMES.TRIG) == 1)):
-                        if ((changes.get(NAMES.TRIG) == 1) and (self.had_rising_trigger == 0)):
-                            self.had_rising_trigger = 1
-                        elif ((changes.get(NAMES.TRIG) == 1) and (self.had_rising_trigger == 1)):
-                            self.had_rising_trigger = 0
-                            self.programmed_step_to_queue(pulses, ts, delay, gap, step, width)
-
-                    if  ((self.TRIG_EDGE == 1) and (changes.get(NAMES.TRIG) == 0)):
-                        if ((changes.get(NAMES.TRIG) == 1) and (self.had_falling_trigger == 0)):
-                            self.had_falling_trigger = 1
-                        elif ((changes.get(NAMES.TRIG) == 1) and (self.had_falling_trigger == 1)):
-                            self.had_falling_trigger = 0
-                            self.programmed_step_to_queue(pulses, ts, delay, gap, step, width)
-
-                # Fully making it up
-                elif ((width == 0) and (self.STEP_L + (self.STEP_H << 32) == 0)):
-                    self.fancy_delay_line = 1
-
-                    if (len(self.queue) != 0):
-                        if (ts - (self.queue[-1][0] - delay) < 2):
-                            self.DROPPED += 1
-                        else:
-                            self.ts_to_queue(changes, ts, delay)
-
-                    else:
-                        self.ts_to_queue(changes, ts, delay)
+        self.queue_filling()
 
 
         ############################################
         #             Queue processing             #
         ############################################
 
-        if (changes.get(NAMES.ENABLE) == 1):
-            pass
-            # in case we need to clear things
+        self.process_queue()
 
-        elif ((self.ENABLE == 1) and (len(self.queue) != 0)):
-            if ((ts, 2) in self.queue):
-                self.queue.popleft()
-                self.internal_queue_length -= 1
-                self.QUEUED = self.internal_queue_length
 
-            if ((ts, 1) in self.queue):
-                self.queue.popleft()
-                self.OUT = 1
+        ############################################
+        #          Final output parameters         #
+        ############################################
 
-            if ((ts, 0) in self.queue):
-                self.queue.popleft()
-                self.OUT = 0
-
-            if ((len(self.queue)) == 0):
-                self.delay_timestamp = 0
-
-        else:
-            self.OUT = 0
+        self.DROPPED = self.missed_pulses
+        self.QUEUED = len(self.queue)
